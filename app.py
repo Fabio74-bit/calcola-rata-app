@@ -59,11 +59,12 @@ def rate_from_coeff(imponibile, coeff_percent, tipo):
     return (monthly*3.0) if (tipo == "Trimestrale") else monthly, monthly
 
 def implied_imponibile_from_rate(rate_value, coeff_percent, tipo):
-    # reverse: se trimestrale, prima riportiamo a mensile
+    # Interpreta SEMPRE la rata inserita come MENSILE (niente /3)
     if coeff_percent <= 0:
         return None
-    monthly_rate = rate_value/3.0 if (tipo == "Trimestrale") else rate_value
+    monthly_rate = rate_value
     return (monthly_rate * 100.0) / coeff_percent
+
 
 def make_table(fin_list, imponibile, durata, tipo, tables):
     rows = []
