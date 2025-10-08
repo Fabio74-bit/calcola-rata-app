@@ -1,44 +1,39 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
 
-st.set_page_config(page_title="Calcolatore Rata", layout="centered")
+st.set_page_config(page_title="Calcolo Rata da Excel", layout="centered")
+st.title("📊 Calcolatore Rata Finanziamento da Excel")
 
-st.title("📊 Calcolatore Rata Finanziamento")
+# Carica file Excel fisso (in locale o nel repo)
+file_path = "CalcolaRata_Fin.xlsx"
+xls = pd.ExcelFile(file_path)
 
-uploaded_file = st.file_uploader("Carica il file Excel", type=["xlsx"])
-if uploaded_file is not None:
-    df = pd.read_excel(uploaded_file)
-    st.subheader("📄 Dati dal file:")
-    st.dataframe(df)
+df_coeff = xls.parse("Coefficienti")
 
-st.subheader("🧮 Inserisci Parametri Manualmente")
-importo = st.number_input("Importo Finanziato (€)", value=10000.0)
-tasso_annuo = st.number_input("Tasso Annuo (%)", value=5.0)
-durata_mesi = st.slider("Durata (mesi)", min_value=6, max_value=120, value=60)
+# Mostra dati
+with st.expander("📄 Visualizza tabella coefficienti"):
+    st.dataframe(df_coeff)
 
-tasso_mensile = (tasso_annuo / 100) / 12
-if tasso_mensile > 0:
-    rata = importo * (tasso_mensile / (1 - (1 + tasso_mensile) ** -durata_mesi))
+# Input utente
+st.subheader("📥 Parametri del finanziamento")
+
+finanziaria = st.selectbox("Scegli Finanziaria", df_coeff["Finanziaria"].unique())
+durata = st.selectbox("Scegli Durata (mesi)", sorted(df_coeff["Durata"].unique()))
+importo = st.number_input("Inserisci Importo (€)", value=5000.0, step=100.0)
+
+# Filtra il coefficiente corretto
+filtro = df_coeff[
+    (df_coeff["Finanziaria"] == finanziaria) &
+    (df_coeff["Durata"] == durata) &
+    (df_coeff["FasciaMin"] <= importo) &
+    (df_coeff["FasciaMax"] >= importo)
+]
+
+if filtro.empty:
+    st.error("❌ Nessun coefficiente trovato per i parametri selezionati.")
 else:
-    rata = importo / durata_mesi
+    coeff = filtro.iloc[0]["Coeff_percent"]
+    rata = importo * (coeff / 100)
 
-st.success(f"💰 Rata mensile: **{rata:,.2f} €**")
-
-if st.checkbox("Mostra piano ammortamento"):
-    piano = []
-    capitale_residuo = importo
-    for mese in range(1, durata_mesi + 1):
-        interessi = capitale_residuo * tasso_mensile
-        quota_capitale = rata - interessi
-        capitale_residuo -= quota_capitale
-        piano.append({
-            "Mese": mese,
-            "Rata": round(rata, 2),
-            "Quota Capitale": round(quota_capitale, 2),
-            "Interessi": round(interessi, 2),
-            "Residuo": round(capitale_residuo, 2)
-        })
-
-    df_piano = pd.DataFrame(piano)
-    st.dataframe(df_piano)
+    st.success(f"💰 Rata mensile: **{rata:,.2f} €**")
+    st.info(f"📈 Coefficiente applicato: {coeff} per {durata} mesi con {finanziaria}")
